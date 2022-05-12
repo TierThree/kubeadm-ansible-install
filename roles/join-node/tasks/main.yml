@@ -1,0 +1,8 @@
+---
+- name: Get the kubeadm join command
+  command: kubeadm token create --print-join-command
+  delegate_to: "{{ master_node }}"
+  register: comm
+
+- name: Run the kubeadm join command
+  command: "{{ comm.stdout }}"

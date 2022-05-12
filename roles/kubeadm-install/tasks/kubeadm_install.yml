@@ -1,0 +1,49 @@
+---
+- name: Disable the swap on the system
+  command: swapoff -a
+
+- name: Modify /etc/fstab to remove the swap partition
+  lineinfile:
+    path: /etc/fstab
+    regexp: ".*swap.*"
+    state: absent
+  register: fstab
+
+- name: Reboot the machine after /etc/fstab update
+  reboot:
+  when: fstab is changed
+
+- name: Copy over all the k8s required files
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+  - { src: "modules", dest: "/etc/modules-load.d/k8s.conf" }
+  - { src: "sysctl", dest: "/etc/sysctl.d/k8s.conf" }
+  - { src: "kubernetes.list", dest: "/etc/apt/sources.list.d/kubernetes.list" }
+
+- name: Apply the new changes to the system
+  command: sysctl --system
+
+- name: Download the gpg key for the repo
+  get_url:
+    url: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'
+    dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+- name: Install docker as the runtime for the system
+  include_tasks: docker_install.yml
+
+- name: Download the required modules for the system
+  apt:
+    update_cache: yes
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'vim', 'git', 'kubectl', 'kubeadm', 'kubelet']
+    state: latest
+
+- name: Hold kubelet kubectl and kubeadm
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  with_items:
+  - kubectl
+  - kubeadm
+  - kubelet

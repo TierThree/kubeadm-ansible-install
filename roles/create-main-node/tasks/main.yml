@@ -1,0 +1,29 @@
+---
+- name: Run the kubeadm init command
+  command: kubeadm init --pod-network-cidr=10.244.0.0/16
+
+- name: Create local dir for ansible user
+  become: "{{ ansible_user }}"
+  file:
+    path: "/home/{{ansible_user}}/.kube"
+    state: directory
+
+- name: Copy the admin.conf to /home/ansible/.kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    remote_src: yes
+    owner: ansible
+    group: ansible
+
+- name: Apply the calico network plugin
+  become: ansible
+  command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+  ignore_errors: true
+
+- name: Set the alias for kubectl to k
+  become: "{{ ansible_user }}"
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.bashrc"
+    regexp: "^alias k=kubectl"
+    line: alias k=kubectl

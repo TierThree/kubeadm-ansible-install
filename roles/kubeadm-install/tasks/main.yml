@@ -1,0 +1,3 @@
+---
+- name: Kubeadm install
+  include_tasks: kubeadm_install.yml
